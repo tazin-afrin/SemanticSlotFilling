@@ -178,11 +178,13 @@ history = model.fit(Xtrain, Ytrain, batch_size=BATCH_SIZE, epochs=NUM_EPOCHS,
 
 
 # evaluate model
+print "=======Evaluation=========(include padding)"
 score, acc = model.evaluate(Xtest, Ytest, batch_size=BATCH_SIZE)
 # BATCH_SIZEprint model.evaluate(Xtest, Ytest, batch_size=BATCH_SIZE)
 print("Test score: %.3f, accuracy: %.3f" % (score, acc))
 
 # custom evaluate
+print "=======Evaluation=========(slot only)"
 hit_rates = []
 num_iters = Xtest.shape[0] // BATCH_SIZE
 for i in range(num_iters - 1):
