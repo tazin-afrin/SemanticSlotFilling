@@ -17,11 +17,25 @@ import keras.backend as K
 import os
 from keras.callbacks import Callback
 from sklearn.metrics import precision_recall_fscore_support, classification_report
+import pickle
+import semantic_slot_features
 
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 EMBEDDING = '../glove.6B/glove.6B.100d.txt'
 DATA_DIR = "../../data"
+
+FRAMENET_D = 44
+FRAMENET_EMBEDDING = '../'
+
+# define network
+GLOVE_SIZE = 100
+EMBED_SIZE = FRAMENET_D + GLOVE_SIZE
+
+HIDDEN_SIZE = 32
+
+BATCH_SIZE = 32
+NUM_EPOCHS = 10
 
 class Metrics(Callback):
 
@@ -74,15 +88,22 @@ def create_embedding(s_word2id):
         # print('Loaded %s word vectors.' % len(embeddings_index))
 
     # create a weight matrix for words in training docs
-    embedding_matrix = zeros((len(s_word2id), 100))
+    embedding_matrix = zeros((len(s_word2id), EMBED_SIZE))
 
     print embedding_matrix
+
+    print "=======read the framenet vector======"
+    trainFile = './data/atis.train.w-intent.iob'
+    trainxml = './data/train_noBOS.xml'
+
+    semantic_dict = semantic_slot_features.create_semantic_dict(trainFile, trainxml)
 
     for word, i in s_word2id.items():
         # print word,i
         embedding_vector = embeddings_index.get(word)
         if embedding_vector is not None:
-            embedding_matrix[i] = embedding_vector
+
+            embedding_matrix[i] = list(embedding_vector.flatten())+list(semantic_dict[word])
 
     # print embedding_matrix
     return embedding_matrix
@@ -132,6 +153,7 @@ t_maxlen, t_counter = explore_data(DATA_DIR, ["train_tag",
 
 # print "====counter===="
 # print t_counter
+# print "========s length=========="
 print(s_maxlen, len(s_counter), t_maxlen, len(t_counter))
 # 7 21 7 9
 # maxlen: 7
@@ -141,6 +163,8 @@ print(s_maxlen, len(s_counter), t_maxlen, len(t_counter))
 # lookup tables
 s_word2id = {k: v + 1 for v, (k, _) in enumerate(s_counter.most_common())}
 s_word2id["PAD"] = 0
+print "=======number of lexicon====="
+print len(s_word2id)
 # print "=====word2id===="
 # print s_word2id["BOS"]
 # print s_word2id["EOS"]
@@ -172,12 +196,7 @@ print(Xtrain.shape, Xtest.shape, Ytrain.shape, Ytest.shape)
 print "===tensor self===="
 print Xtrain,Xtest,Ytrain,Ytest
 
-# define network
-EMBED_SIZE = 100
-HIDDEN_SIZE = 32
 
-BATCH_SIZE = 32
-NUM_EPOCHS = 10
 
 model = Sequential()
 # M = Masking(mask_value=0.)
@@ -287,8 +306,8 @@ for i in range(Xtest.shape[0]):
     i_len += len(pos_labels)
     j_len += len(pos_pred)
 
-print count_i,count_j
-print i_len,j_len
+# print count_i,count_j
+# print i_len,j_len
 # print "=====Y_labels====="
 # print Y_labels
 # print "=====Y_pred====="
