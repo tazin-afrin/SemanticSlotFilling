@@ -15,8 +15,35 @@ from numpy import zeros
 from numpy import asarray
 import keras.backend as K
 import os
+from keras.callbacks import Callback
+from sklearn.metrics import precision_recall_fscore_support
+
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 EMBEDDING = '../glove.6B/glove.6B.100d.txt'
+DATA_DIR = "../../data"
+
+class Metrics(Callback):
+
+    def on_train_begin(self, logs={}):
+        self.val_f1s = []
+        self.val_recalls = []
+        self.val_precisions = []
+
+    def on_epoch_end(self, epoch, logs={}):
+        val_predict = (np.asarray(self.model.predict(self.validation_data[0]))).round()
+        val_targ = self.validation_data[1]
+        print "===call back===="
+        print val_predict,val_targ
+        # _val_f1 = f1_score(val_targ, val_predict)
+        # _val_recall = recall_score(val_targ, val_predict)
+        # _val_precision = precision_score(val_targ, val_predict)
+        # self.val_f1s.append(_val_f1)
+        # self.val_recalls.append(_val_recall)
+        # self.val_precisions.append(_val_precision)
+        # print " — val_f1: % f — val_precision: % f — val_recall % f" % (_val_f1, _val_precision, _val_recall)
+        return
+
 
 def explore_data(datadir, datafiles):
     counter = collections.Counter()
@@ -96,7 +123,7 @@ def evaluate_model(model, Xtest, Ytest, batch_size):
     pass
 
 
-DATA_DIR = "../../data"
+
 
 s_maxlen, s_counter = explore_data(DATA_DIR, ["train",
                                               "test"])
@@ -124,6 +151,9 @@ print "====pos2id===="
 print t_pos2id["O"]
 t_id2pos = {v: k for k, v in t_pos2id.items()}
 embedding_matrx = create_embedding(s_word2id)
+print "========number of class======"
+print len(set(t_id2pos))
+print len(set(t_pos2id))
 
 # vectorize data
 MAX_SEQLEN = 20
@@ -147,7 +177,7 @@ EMBED_SIZE = 100
 HIDDEN_SIZE = 32
 
 BATCH_SIZE = 32
-NUM_EPOCHS = 5
+NUM_EPOCHS = 10
 
 model = Sequential()
 M = Masking(mask_value=0.)
@@ -171,9 +201,9 @@ model.compile(loss="categorical_crossentropy", optimizer="adam",
 # print Xtrain.shape
 # print Xtest.shape
 
-
+metrics = Metrics()
 history = model.fit(Xtrain, Ytrain, batch_size=BATCH_SIZE, epochs=NUM_EPOCHS,
-                    validation_data=[Xtest, Ytest])
+                    validation_data=[Xtest, Ytest])#,callbacks=[metrics])
 
 
 
@@ -183,27 +213,91 @@ score, acc = model.evaluate(Xtest, Ytest, batch_size=BATCH_SIZE)
 # BATCH_SIZEprint model.evaluate(Xtest, Ytest, batch_size=BATCH_SIZE)
 print("Test score: %.3f, accuracy: %.3f" % (score, acc))
 
+
+
 # custom evaluate
 print "=======Evaluation=========(slot only)"
 hit_rates = []
 num_iters = Xtest.shape[0] // BATCH_SIZE
+
+count_i = 0
+count_j = 0
+i_len = 0
+j_len = 0
+Y_labels = []
+Y_pred = []
+
+# print "====range(num_iters - 1)===="
+# print num_iters - 1
 for i in range(num_iters - 1):
     xtest = Xtest[i * BATCH_SIZE: (i + 1) * BATCH_SIZE]
     ytest = np.argmax(Ytest[i * BATCH_SIZE: (i + 1) * BATCH_SIZE], axis=2)
     ytest_ = np.argmax(model.predict(xtest), axis=2)
     #    print(ytest.shape, ytest_.shape)
     for j in range(BATCH_SIZE):
+        # print "=====j's sample====="
         #        print("sentence:  " + " ".join([s_id2word[x] for x in xtest[j].tolist()]))
         #        print("predicted: " + " ".join([t_id2pos[y] for y in ytest_[j].tolist()]))
         #        print("label:     " + " ".join([t_id2pos[y] for y in ytest[j].tolist()]))
         word_indices = np.nonzero(xtest[j])
+
         pos_labels = ytest[j][word_indices]
         pos_pred = ytest_[j][word_indices]
         hit_rates.append(np.sum(pos_labels == pos_pred) / len(pos_pred))
-    break
 
+        Y_labels += list(pos_labels)
+        Y_pred += list(pos_pred)
+
+        count_i += 1
+        count_j += 1
+        i_len += len(pos_labels)
+        j_len += len(pos_pred)
+
+    # print "=====pos_pred, pos_lables===="
+    # print ytest, ytest_
+    # break
 accuracy = sum(hit_rates) / len(hit_rates)
 print("accuracy: {:.3f}".format(accuracy))
+
+# print count_i,count_j
+# print i_len,j_len
+# print "=====Y_labels====="
+# print Y_labels
+# print "=====Y_pred====="
+# print Y_pred
+
+# Y_labels = asarray(Y_labels).flatten()
+# Y_pred = asarray(Y_pred).flatten()
+
+eachClass_F1 = precision_recall_fscore_support(Y_labels,Y_pred,average='micro')#,labels=listofClass,average=None)
+f1 = f1_score(Y_labels,Y_pred,average='micro')#,labels=listofClass,average=None)
+print "=======Y lables, Y pred, precision, recall , F1 ========="
+print eachClass_F1
+# print "=======Y lables, Y pred, f1========="
+# print f1
+
+
+# print "=====Ytest,Ypredict===="
+# Ypredict_conf = np.argmax(model.predict(Xtest), axis=2).flatten()
+# Ytrue_conf = np.argmax(Ytest,axis=2).flatten()
+# print Ytrue_conf
+# print Ypredict_conf
+#     # print ytest, ytest_
+# confusion_matrix = confusion_matrix(Ytrue_conf, Ypredict_conf)
+# print confusion_matrix
+# print len(confusion_matrix)
+#
+# listofClass = [x for x in range(1,128)]
+# eachClass_F1 = precision_recall_fscore_support(Ytrue_conf,Ypredict_conf,average='weighted')#,labels=listofClass,average=None)
+# f1 = f1_score(Ytrue_conf,Ypredict_conf,average='weighted')#,labels=listofClass,average=None)
+# print "=======precision, recall , F1========="
+# print eachClass_F1
+# print "=======f1========="
+# print f1
+
+
+
+
 
 # prediction
 pred_ids = np.random.randint(0, 893, 5)
