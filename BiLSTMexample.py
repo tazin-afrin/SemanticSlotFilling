@@ -111,11 +111,11 @@ def build_tensor(filename, numrecs, word2index, maxlen,
             data[i] = wids
         i += 1
     fin.close()
-    print "===data==="
-    print(data)
+    # print "===data==="
+    # print(data)
     pdata = sequence.pad_sequences(data, maxlen=maxlen)
-    print "====paded data===="
-    print pdata
+    # print "====paded data===="
+    # print pdata
     return pdata
 
 
@@ -130,8 +130,8 @@ s_maxlen, s_counter = explore_data(DATA_DIR, ["train",
 t_maxlen, t_counter = explore_data(DATA_DIR, ["train_tag",
                                               "test.tag"])
 
-print "====counter===="
-print t_counter
+# print "====counter===="
+# print t_counter
 print(s_maxlen, len(s_counter), t_maxlen, len(t_counter))
 # 7 21 7 9
 # maxlen: 7
@@ -141,14 +141,14 @@ print(s_maxlen, len(s_counter), t_maxlen, len(t_counter))
 # lookup tables
 s_word2id = {k: v + 1 for v, (k, _) in enumerate(s_counter.most_common())}
 s_word2id["PAD"] = 0
-print "=====word2id===="
-print s_word2id["BOS"]
-print s_word2id["EOS"]
+# print "=====word2id===="
+# print s_word2id["BOS"]
+# print s_word2id["EOS"]
 s_id2word = {v: k for k, v in s_word2id.items()}
 t_pos2id = {k: v + 1 for v, (k, _) in enumerate(t_counter.most_common())}
 t_pos2id["PAD"] = 0
-print "====pos2id===="
-print t_pos2id["O"]
+# print "====pos2id===="
+# print t_pos2id["O"]
 t_id2pos = {v: k for k, v in t_pos2id.items()}
 embedding_matrx = create_embedding(s_word2id)
 print "========number of class======"
@@ -167,7 +167,7 @@ Ytrain = build_tensor(os.path.join(DATA_DIR, "train_tag"),
 Ytest = build_tensor(os.path.join(DATA_DIR, "test.tag"),
                      4978, t_pos2id, MAX_SEQLEN, make_categorical=True)
 print "===tensor==="
-print "shape"
+# print "shape"
 print(Xtrain.shape, Xtest.shape, Ytrain.shape, Ytest.shape)
 print "===tensor self===="
 print Xtrain,Xtest,Ytrain,Ytest
