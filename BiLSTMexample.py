@@ -16,7 +16,7 @@ from numpy import asarray
 import keras.backend as K
 import os
 from keras.callbacks import Callback
-from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support, classification_report
 
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
@@ -153,10 +153,10 @@ t_id2pos = {v: k for k, v in t_pos2id.items()}
 embedding_matrx = create_embedding(s_word2id)
 print "========number of class======"
 print len(set(t_id2pos))
-print len(set(t_pos2id))
+# print len(set(t_pos2id))
 
 # vectorize data
-MAX_SEQLEN = 20
+MAX_SEQLEN = 40
 
 Xtrain = build_tensor(os.path.join(DATA_DIR, "train"),
                       4978, s_word2id, MAX_SEQLEN)
@@ -180,9 +180,11 @@ BATCH_SIZE = 32
 NUM_EPOCHS = 10
 
 model = Sequential()
-M = Masking(mask_value=0.)
-M._input_shape = (MAX_SEQLEN,100)
-model.add(Embedding(len(s_word2id), EMBED_SIZE,weights=[embedding_matrx],trainable=False,
+# M = Masking(mask_value=0.)
+# M._input_shape = (MAX_SEQLEN,100)
+# model.add(M)
+# model.add(Masking(mask_value=0., input_shape=(MAX_SEQLEN, 100)))
+model.add(Embedding(len(s_word2id), EMBED_SIZE,weights=[embedding_matrx],trainable=False,mask_zero=True,
                     input_length=MAX_SEQLEN))
 # model.add(SpatialDropout1D(Dropout(0.2)))
 # model.add(LSTM(HIDDEN_SIZE, dropout=0.2, recurrent_dropout=0.2))
@@ -229,38 +231,64 @@ Y_pred = []
 
 # print "====range(num_iters - 1)===="
 # print num_iters - 1
-for i in range(num_iters - 1):
-    xtest = Xtest[i * BATCH_SIZE: (i + 1) * BATCH_SIZE]
-    ytest = np.argmax(Ytest[i * BATCH_SIZE: (i + 1) * BATCH_SIZE], axis=2)
-    ytest_ = np.argmax(model.predict(xtest), axis=2)
-    #    print(ytest.shape, ytest_.shape)
-    for j in range(BATCH_SIZE):
-        # print "=====j's sample====="
-        #        print("sentence:  " + " ".join([s_id2word[x] for x in xtest[j].tolist()]))
-        #        print("predicted: " + " ".join([t_id2pos[y] for y in ytest_[j].tolist()]))
-        #        print("label:     " + " ".join([t_id2pos[y] for y in ytest[j].tolist()]))
-        word_indices = np.nonzero(xtest[j])
+# for i in range(num_iters - 1):
+#     xtest = Xtest[i * BATCH_SIZE: (i + 1) * BATCH_SIZE]
+#     ytest = np.argmax(Ytest[i * BATCH_SIZE: (i + 1) * BATCH_SIZE], axis=2)
+#     ytest_ = np.argmax(model.predict(xtest), axis=2)
+#     #    print(ytest.shape, ytest_.shape)
+#     for j in range(BATCH_SIZE):
+#         # print "=====j's sample====="
+#         #        print("sentence:  " + " ".join([s_id2word[x] for x in xtest[j].tolist()]))
+#         #        print("predicted: " + " ".join([t_id2pos[y] for y in ytest_[j].tolist()]))
+#         #        print("label:     " + " ".join([t_id2pos[y] for y in ytest[j].tolist()]))
+#         word_indices = np.nonzero(xtest[j])
+#
+#         pos_labels = ytest[j][word_indices]
+#         pos_pred = ytest_[j][word_indices]
+#         hit_rates.append(np.sum(pos_labels == pos_pred) / len(pos_pred))
+#
+#
+#         print pos_labels
+#
+#         if 0 in pos_labels:
+#             print  "=====pos labels contains 0====="
+#             print("sentence:  " + " ".join([s_id2word[x] for x in xtest[j].tolist()]))
+#             print("predicted: " + " ".join([t_id2pos[y] for y in ytest_[j].tolist()]))
+#             print("label:     " + " ".join([t_id2pos[y] for y in ytest[j].tolist()]))
+#
+#         Y_labels += list(pos_labels)
+#         Y_pred += list(pos_pred)
+#
+#         count_i += 1
+#         count_j += 1
+#         i_len += len(pos_labels)
+#         j_len += len(pos_pred)
+# accuracy = sum(hit_rates) / len(hit_rates)
+# print("accuracy: {:.3f}".format(accuracy))
 
-        pos_labels = ytest[j][word_indices]
-        pos_pred = ytest_[j][word_indices]
-        hit_rates.append(np.sum(pos_labels == pos_pred) / len(pos_pred))
+# print "===Ytest===="
+# print Ytest
+ytest = np.argmax(Ytest, axis=2)
+ytest_ = np.argmax(model.predict(Xtest), axis=2)
+for i in range(Xtest.shape[0]):
 
-        Y_labels += list(pos_labels)
-        Y_pred += list(pos_pred)
+    word_indices = np.nonzero(Xtest[i])
 
-        count_i += 1
-        count_j += 1
-        i_len += len(pos_labels)
-        j_len += len(pos_pred)
+    pos_labels = ytest[i][word_indices]
+    pos_pred = ytest_[i][word_indices]
 
-    # print "=====pos_pred, pos_lables===="
-    # print ytest, ytest_
-    # break
-accuracy = sum(hit_rates) / len(hit_rates)
-print("accuracy: {:.3f}".format(accuracy))
 
-# print count_i,count_j
-# print i_len,j_len
+
+    Y_labels += list(pos_labels)
+    Y_pred += list(pos_pred)
+
+    count_i += 1
+    count_j += 1
+    i_len += len(pos_labels)
+    j_len += len(pos_pred)
+
+print count_i,count_j
+print i_len,j_len
 # print "=====Y_labels====="
 # print Y_labels
 # print "=====Y_pred====="
@@ -269,10 +297,30 @@ print("accuracy: {:.3f}".format(accuracy))
 # Y_labels = asarray(Y_labels).flatten()
 # Y_pred = asarray(Y_pred).flatten()
 
-eachClass_F1 = precision_recall_fscore_support(Y_labels,Y_pred,average='micro')#,labels=listofClass,average=None)
-f1 = f1_score(Y_labels,Y_pred,average='micro')#,labels=listofClass,average=None)
+eachClass_F1 = precision_recall_fscore_support(Y_labels,Y_pred,average='weighted')#,labels=listofClass,average=None)
+f1 = f1_score(Y_labels,Y_pred,average='weighted')#,labels=listofClass,average=None)
 print "=======Y lables, Y pred, precision, recall , F1 ========="
 print eachClass_F1
+print "======classification result======"
+target_names = [i for i in range(len(t_pos2id))]
+
+# print "-------t_pos2id-------"
+# print t_pos2id
+for pos in t_pos2id:
+    # print pos
+    if pos != "PAD":
+        target_names[t_pos2id[pos]] = pos
+target_names = target_names[1:]
+# print "---taget names---"
+# print target_names
+
+# target_names = t_pos2id.keys()
+listofClass = [x for x in range(1,128)]
+# print "======listofClass===="
+# print listofClass
+classification_report_1 = classification_report(Y_labels,Y_pred,labels=listofClass,target_names=target_names)
+print classification_report_1
+
 # print "=======Y lables, Y pred, f1========="
 # print f1
 
@@ -280,9 +328,11 @@ print eachClass_F1
 # print "=====Ytest,Ypredict===="
 # Ypredict_conf = np.argmax(model.predict(Xtest), axis=2).flatten()
 # Ytrue_conf = np.argmax(Ytest,axis=2).flatten()
-# print Ytrue_conf
-# print Ypredict_conf
-#     # print ytest, ytest_
+# # print Ytrue_conf
+# # print Ypredict_conf
+# #     # print ytest, ytest_
+# classification_report_2 = classification_report(Ytrue_conf,Ypredict_conf,labels=listofClass,target_names=target_names)
+# print classification_report_2
 # confusion_matrix = confusion_matrix(Ytrue_conf, Ypredict_conf)
 # print confusion_matrix
 # print len(confusion_matrix)
@@ -302,7 +352,7 @@ print eachClass_F1
 # prediction
 pred_ids = np.random.randint(0, 893, 5)
 for pred_id in pred_ids:
-    xtest = Xtest[pred_id].reshape(1, 20)
+    xtest = Xtest[pred_id].reshape(1, MAX_SEQLEN)
     ytest_ = np.argmax(model.predict(xtest), axis=2)
     ytest = np.argmax(Ytest[pred_id], axis=1)
     print("sentence:  " + " ".join([s_id2word[x] for x in xtest[0].tolist()]))
